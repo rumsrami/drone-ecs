@@ -1,0 +1,4 @@
+config:
+  aws:profile: eu-default
+  aws:region: eu-central-1
+  pulumi:template: aws-typescript

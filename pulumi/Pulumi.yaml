@@ -1,0 +1,3 @@
+name: drone-ecs
+runtime: nodejs
+description: Drone deployment on ECS
