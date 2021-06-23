@@ -20,6 +20,7 @@ const ecsTaskExecutionRolePolicyArns: (string | pulumi.Output<string>)[] = [
   "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole",
   "arn:aws:iam::aws:policy/AmazonRDSDataFullAccess",
   "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+  "arn:aws:iam::aws:policy/AmazonElasticFileSystemClientReadWriteAccess",
   ecsReadSecretsRolePolicy.arn,
   ecsDroneServerRolePolicy.arn,
 ];

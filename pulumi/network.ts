@@ -20,10 +20,33 @@ const rdsIsolatedSubnets: Map<string, string> = new Map([
     ["172.41.0.0/28", zoneA],
     ["172.41.0.16/28", zoneB],
 ])
+// Autoscaler subnets
+const autoscalerPrivateSubnets: Map<string, string> = new Map([
+    ["172.41.0.32/28", zoneA],
+])
+
+// EFS subnets
+const efsPrivateSubnets: Map<string, string> = new Map([
+    ["172.41.0.48/28", zoneA],
+    ["172.41.0.64/28", zoneB],
+    ["172.41.0.80/28", zoneC],
+])
 
 const rdsIsolatedSubnetTags: pulumi.Input<aws.Tags> = {
   "app": prefix.APP_NAME,
   "resource": "rds",
+  "access": "private",
+}
+
+const autoscalerPrivateSubnetTags: pulumi.Input<aws.Tags> = {
+  "app": prefix.APP_NAME,
+  "resource": "autoscaler",
+  "access": "private",
+}
+
+const efsPrivateSubnetTags: pulumi.Input<aws.Tags> = {
+  "app": prefix.APP_NAME,
+  "resource": "efs",
   "access": "private",
 }
 
@@ -107,3 +130,63 @@ export const clusterVPC = new awsx.ec2.Vpc(prefix.VPC, {
 export const rdsSubnets = getSubnetArgs(rdsIsolatedSubnetTags, clusterVPC.id, rdsIsolatedSubnets)
     .map((args, index) => new aws.ec2.Subnet(`${prefix.RDS_SUBNET}-${index}`, args))
 
+// Create and export private autoscaler EC2 subnets
+// TODO: change route table names to reflect that this is for autoscaler
+export const autoscalerEC2Subnets = getSubnetArgs(autoscalerPrivateSubnetTags, clusterVPC.id, autoscalerPrivateSubnets)
+    // for every subnet arg create a subnet
+    .map((args, index) => {
+        // create eks isolated subnet
+        const autoscalerEC2Subnet = new aws.ec2.Subnet(`${prefix.AUTOSCALER_SUBNET}-${index}`, args)
+        // for every subnet get subnet id
+        autoscalerEC2Subnet.id.apply(id => {
+            // for every subnet id get the nat gateway id
+            clusterVPC.natGateways.then(x => {
+                // use subnet id and nat gateway id to create a route table
+                const routeTable = new aws.ec2.RouteTable(`${prefix.ECS_CLUSTER}-route-table-${id}`, {
+                    vpcId: clusterVPC.id,
+                    routes: [
+                        {
+                            cidrBlock: "0.0.0.0/0",
+                            natGatewayId: x[0].natGateway.id // replace with the new nat gateway id
+                        }
+                    ]
+                })
+                // create route table association for every route table
+                new aws.ec2.RouteTableAssociation(`${prefix.ECS_CLUSTER}-route-table-association-${id}`, {
+                    routeTableId: routeTable.id,
+                    subnetId: id
+                });
+            })
+        })
+        return autoscalerEC2Subnet
+    })
+
+    // Create and export EFS private subnets
+export const efsSubnets = getSubnetArgs(efsPrivateSubnetTags, clusterVPC.id, efsPrivateSubnets)
+    // for every subnet arg create a subnet
+    .map((args, index) => {
+        // create eks isolated subnet
+        const efsSubnet = new aws.ec2.Subnet(`${prefix.EFS_SUBNET}-${index}`, args)
+        // for every subnet get subnet id
+        efsSubnet.id.apply(id => {
+            // for every subnet id get the nat gateway id
+            clusterVPC.natGateways.then(x => {
+                // use subnet id and nat gateway id to create a route table
+                const routeTable = new aws.ec2.RouteTable(`${prefix.ECS_CLUSTER}-efs-route-table-${id}`, {
+                    vpcId: clusterVPC.id,
+                    routes: [
+                        {
+                            cidrBlock: "0.0.0.0/0",
+                            natGatewayId: x[0].natGateway.id // replace with the new nat gateway id
+                        }
+                    ]
+                })
+                // create route table association for every route table
+                new aws.ec2.RouteTableAssociation(`${prefix.ECS_CLUSTER}-efs-route-table-association-${id}`, {
+                    routeTableId: routeTable.id,
+                    subnetId: id
+                });
+            })
+        })
+        return efsSubnet
+    })
