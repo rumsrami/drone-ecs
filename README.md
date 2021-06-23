@@ -12,5 +12,6 @@
 7. Secrets passed into ECS using AWS Secret manager.
 8. Drone Server and Autoscaler deployed in a 2 Fargate tasks
 9. Drone autoscaler spins EC2 instances for Queued jobs
-10. All resources run in private IPs and communicate within the VPC
+10. All resources run in private IPs and communicate within the VPC\
+11. Logs are sent to a cloud watch log group
 
